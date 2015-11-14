@@ -1,7 +1,6 @@
 var express  = require( "express" );
-var morgan = require( "morgan" ); 
-var mysql = require( "mysql" );
 var bodyParser = require( "body-parser" );
+var mysql = require( "mysql" );
 
 // Server configurations
 // -----------------------------------------------------------------------------
@@ -9,7 +8,6 @@ var port = 3014;
 var app = express();
 app.use( express.static( __dirname + "/public" ) );
 app.use( bodyParser.text() );
-app.use( morgan( "dev" ) );
 
 // Database connection
 // -----------------------------------------------------------------------------
