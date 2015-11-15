@@ -97,7 +97,7 @@ var hive = {
             callback( null, { story: story, neighbours: storyNeighbours } );
         } );
     },
-    createStory: function( languageId, message, x, y, callback ) {
+    createStory: function( languageId, message, x, y, remoteAddress, callback ){
         var oldX = x;
         var oldY = y;
         x = parseInt( x );
@@ -179,7 +179,7 @@ var hive = {
                         sql = "INSERT INTO log_story " +
                             "(story_id, remote_addr, created_on) " +
                             "VALUES (?, ?, NOW())";
-                        esc = [ result.insertId, '127.0.0.1' ];
+                        esc = [ result.insertId, remoteAddress ];
                         con.query( sql, esc, function( err, result ) {
                             if ( err ) {
                                 return con.rollback( function() {
@@ -227,12 +227,13 @@ app.get( "/api/story/:language_id/:x/:y", function( req, res ) {
 } );
 
 app.post( "/api/story/:language_id/:x/:y", function( req, res ) {
+    var remoteAddress = req.connection.remoteAddress;
     var languageId = req.params.language_id;
     var message = req.body;
     var x = req.params.x;
     var y = req.params.y;
 
-    hive.createStory( languageId, message, x, y, function( err ) {
+    hive.createStory( languageId, message, x, y, remoteAddress, function( err ){
         if ( err ) {
             res.json( { error: true, response: err } );
             return;
@@ -247,10 +248,6 @@ app.post( "/api/story/:language_id/:x/:y", function( req, res ) {
             res.json( result );
         } );
     } );
-} );
-
-app.get( "*", function( req, res ) {
-    res.sendFile( __dirname + "/public/index.html" );
 } );
 
 // Start server
