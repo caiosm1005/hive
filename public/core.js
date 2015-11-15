@@ -40,6 +40,18 @@ getStory( languageId, x, y, function( err, result ) {
 
 // Display classes
 // -----------------------------------------------------------------------------
+var DisplayBackground = function() {
+    var rect = new createjs.Shape();
+
+    rect.graphics.clear();
+
+    rect.graphics.beginFill( "#ccc" );
+    // rect.graphics.drawRect( 0, 0, stage.canvas.width, stage.canvas.height );
+    rect.graphics.drawRect( 0, 0, 800, 600 );
+
+    return rect;
+};
+
 var DisplayStory = function( message ) {
     var container = new createjs.Container();
 
@@ -47,9 +59,9 @@ var DisplayStory = function( message ) {
     var circle1Time = Math.random() * 10;
     var circle2Time = Math.random() * 10;
     var circle3Time = Math.random() * 10;
-    var circle1MaxOffset = [ Math.random() * 5 + 3, Math.random() * 5 + 3 ];
-    var circle2MaxOffset = [ Math.random() * 5 + 3, Math.random() * 5 + 3 ];
-    var circle3MaxOffset = [ Math.random() * 5 + 3, Math.random() * 5 + 3 ];
+    var circle1MaxOffset = [ Math.random() * 17 + 10, Math.random() * 17 + 10 ];
+    var circle2MaxOffset = [ Math.random() * 17 + 10, Math.random() * 17 + 10 ];
+    var circle3MaxOffset = [ Math.random() * 17 + 10, Math.random() * 17 + 10 ];
 
     var circle1 = new createjs.Shape();
     var circle2 = new createjs.Shape();
@@ -59,14 +71,57 @@ var DisplayStory = function( message ) {
     circle2.graphics.beginFill( "DeepSkyBlue" );
     circle3.graphics.beginFill( "DeepSkyBlue" );
 
-    circle1.graphics.drawCircle( 0, 0, 50 );
-    circle2.graphics.drawCircle( 0, 0, 50 );
-    circle3.graphics.drawCircle( 0, 0, 50 );
+    circle1.graphics.drawCircle( 0, 0, 170 );
+    circle2.graphics.drawCircle( 0, 0, 170 );
+    circle3.graphics.drawCircle( 0, 0, 170 );
 
-    var text = new createjs.Text( message, "20px Arial", "#FFF" );
-    text.textBaseline = "middle";
+    var baseline = "middle";
+    var size = "140px";
+
+    // Try to break message into two lines if it's large enough
+    if ( message.length > 15 ) {
+        var textSplit = false;
+
+        for( var i = 15; i < message.length && i < 30; i++ ) {
+            if ( message[ i ] == " " ) {
+                message = message.substr( 0, i ) + "\n" + message.substr( i+1 );
+                textSplit = true;
+                break;
+            }
+        }
+
+        if ( ! textSplit ) {
+            for( var i = 14; i >= 5; i-- ) {
+                if ( message[ i ] == " " ) {
+                    message = message.substr( 0, i )+"\n"+message.substr( i+1 );
+                    textSplit = true;
+                    break;
+                }
+            }
+        }
+
+        if ( ! textSplit ) {
+            message = message.substr( 0, 15 ) + "\n" + message.substr( 16 );
+        }
+
+        baseline = "bottom";
+    }
+
+    // Resize font
+    if ( message.length > 15 ) {
+        size = "100px";
+    }
+    else if ( message.length > 12 ) {
+        size = "120px";
+    }
+
+    var text = new createjs.Text( message, size + " 'Open Sans'", "#FFFFFF" );
+    text.textBaseline = baseline;
     text.textAlign = "center";
-    //text.cache( -100, -100, 200, 200 );
+    text.maxWidth = 612;
+    text.scaleX = 0.5;
+    text.scaleY = 0.5;
+    text.cache( -320, -160, 640, 320 );
     text.snapToPixel = true;
 
     container.addEventListener( "tick", function() {
@@ -92,8 +147,8 @@ var DisplayStory = function( message ) {
         circle3.scaleX = 1.0 + cosCircle2Time * 0.07;
         circle3.scaleY = 1.0 + sinCircle2Time * 0.07;
 
-        text.x = cosCircle1Time * cosCircle2Time * cosCircle3Time * 1.8;
-        text.y = sinCircle1Time * sinCircle2Time * sinCircle3Time * 1.8;
+        text.x = cosCircle1Time * cosCircle2Time * cosCircle3Time * 6.2 - 5;
+        text.y = sinCircle1Time * sinCircle2Time * sinCircle3Time * 6.2;
 
         circle1Time += circleTimeIncrement;
         circle2Time += circleTimeIncrement;
@@ -108,17 +163,57 @@ var DisplayStory = function( message ) {
     return container;
 };
 
+var DisplayNeighbourPlus = function() {
+    var container = new createjs.Container();
+
+    var circle = new createjs.Shape();
+    circle.graphics.beginFill( "DeepSkyBlue" );
+    circle.graphics.drawCircle( 0, 0, 35 );
+    circle.alpha = 0.4;
+
+    var plusH = new createjs.Shape();
+    plusH.graphics.beginFill( "#FFF" );
+    plusH.graphics.drawRoundRect( -16, -3, 32, 6, 3, 3, 3, 3 );
+
+    var plusV = new createjs.Shape();
+    plusV.graphics.beginFill( "#FFF" );
+    plusV.graphics.drawRoundRect( -3, -16, 6, 32, 3, 3, 3, 3 );
+
+    container.addChild( circle );
+    container.addChild( plusH );
+    container.addChild( plusV );
+
+    return container;
+}
+
 // Build stage
 // -----------------------------------------------------------------------------
 var stage = new createjs.Stage( "stage" );
 createjs.Ticker.setFPS( 60 );
 createjs.Ticker.addEventListener( "tick", stage );
 
-var stgStory = new DisplayStory( "Hello!" );
-stgStory.x = 300;
-stgStory.y = 300;
+var displayBackground = new DisplayBackground();
 
-stgStory.scaleX = 4.0;
-stgStory.scaleY = 4.0;
+var displayStory = new DisplayStory( "Hello!" );
+displayStory.x = 400;
+displayStory.y = 300;
 
-stage.addChild( stgStory );
+
+var displayNeighbourPlus1 = new DisplayNeighbourPlus();
+
+displayNeighbourPlus1.x = 400;
+displayNeighbourPlus1.y = 60;
+
+var displayNeighbourPlus2 = new DisplayNeighbourPlus();
+
+displayNeighbourPlus2.x = 400;
+displayNeighbourPlus2.y = 600 - 60;
+
+/* createjs.Tween.get( displayStory, { loop: true } )
+    .to( { scaleX: 4.0, scaleY: 4.0 }, 1000, createjs.Ease.cubicOut() )
+    .to( { scaleX: 1.0, scaleY: 1.0 }, 1000, createjs.Ease.cubicIn() ); */
+
+stage.addChild( displayBackground );
+stage.addChild( displayStory );
+stage.addChild( displayNeighbourPlus1 );
+stage.addChild( displayNeighbourPlus2 );
