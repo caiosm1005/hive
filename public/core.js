@@ -26,20 +26,27 @@ var languageId = getDefaultLanguageId();
 var x = 0;
 var y = 0;
 
-if ( /^#\d+,\d+$/.test( window.location.hash ) ) {
+if ( /^#-?\d+,-?\d+$/.test( window.location.hash ) ) {
     var splitHash = window.location.hash.split( "," );
     x = parseInt( splitHash[ 0 ].substr( 1 ) );
     y = parseInt( splitHash[ 1 ] );
 }
+else if ( window.location.hash.length ) {
+    console.log( window.location.hash.length );
+    window.location.hash = "#0,0";
+}
 
 console.log( "Starting at coordinates " + x + ", " + y );
 
-getStory( languageId, x, y, function( err, result ) {
-    console.log( result );
-} );
-
 // Util functions
 // -----------------------------------------------------------------------------
+function changePosition( _x, _y ) {
+    x = _x;
+    y = _y;
+    window.location.hash = "#" + x + "," + y;
+    console.log( "Heading to coordinates " + x + ", " + y );
+}
+
 function wrapMessage( msg, breakingPoint ) {
     // Try to break message into two lines if it's large enough
     if ( msg.length <= breakingPoint ) {
@@ -174,6 +181,32 @@ var DisplayStory = function( message ) {
     container.addChild( displayBlobs );
     container.addChild( text );
 
+    container.animateAppear = function() {
+        container.alpha = 0;
+        displayBlobs.scaleX = 0.2;
+        displayBlobs.scaleY = 0.2;
+        createjs.Tween.get( container )
+            .to( { alpha: 1.0 }, 100,
+                createjs.Ease.getPowIn( 3.0 ) );
+        createjs.Tween.get( displayBlobs )
+            .to( { scaleX: 1.0, scaleY: 1.0 }, 320,
+                createjs.Ease.getPowOut( 1.8 ) );
+    };
+
+    container.animateVanish = function() {
+        createjs.Tween.get( container )
+            .wait( 300 )
+            .to( { alpha: 0 }, 100,
+                createjs.Ease.getPowOut( 3.0 ) )
+            .call( function() { container.parent.removeChild( container ); } );
+        createjs.Tween.get( displayBlobs )
+            .to( { scaleX: 0.2, scaleY: 0.2 }, 320,
+                createjs.Ease.getPowIn( 1.8 ) );
+        createjs.Tween.get( text )
+            .to( { scaleX: 0.15, scaleY: 0.15 }, 380,
+                createjs.Ease.getBackIn( 1.1 ) );
+    };
+
     return container;
 };
 
@@ -280,6 +313,68 @@ var DisplayNeighbourPlus = function() {
     return container;
 };
 
+var DisplayStoryScreen = function( story, neighbours ) {
+    var container = new createjs.Container();
+    var displayStory = new DisplayStory( story.message );
+
+    function neighbourClickCallback( event ) {
+        getStory( languageId, event.target.storyX, event.target.storyY,
+            function( err, result ) {
+                if ( err ) {
+                    throw err;
+                }
+
+                container.moveToNeighbour( event.target );
+                setTimeout( function() { window.location.reload() }, 500 );
+            } );
+    }
+
+    for( var i = 0; i < neighbours.length; i++ ) {
+        var neighbour = neighbours[ i ];
+        var displayNeighbour;
+
+        if ( neighbour === null ) {
+            displayNeighbour = new DisplayNeighbourPlus();
+        }
+        else {
+            displayNeighbour = new DisplayNeighbour( neighbour.message );
+            displayNeighbour.storyX = neighbour.x;
+            displayNeighbour.storyY = neighbour.y;
+            displayNeighbour.message = neighbour.message;
+        }
+
+        var angle = -Math.PI * 2 * ( ( i + 1 ) / 6 ) + Math.PI / 6;
+        displayNeighbour.x = Math.cos( angle ) * 250;
+        displayNeighbour.y = Math.sin( angle ) * 250;
+        displayNeighbour.on( "click", neighbourClickCallback );
+
+        container.addChild( displayNeighbour );
+    }
+
+    var displayStoryUnderneath = new DisplayNeighbour( story.message );
+    displayStoryUnderneath.storyX = story.x;
+    displayStoryUnderneath.storyY = story.y;
+    displayStoryUnderneath.message = story.message;
+    displayStoryUnderneath.on( "click", neighbourClickCallback );
+
+    container.addChild( displayStoryUnderneath );
+    container.addChild( displayStory );
+
+    container.moveToNeighbour = function( displayNeighbour ) {
+        displayStory.animateVanish();
+        displayStory = new DisplayStory( displayNeighbour.message );
+        displayStory.x = displayNeighbour.x;
+        displayStory.y = displayNeighbour.y;
+        displayStory.animateAppear();
+
+        container.addChild( displayStory );
+        
+        changePosition( displayNeighbour.storyX, displayNeighbour.storyY );
+    };
+
+    return container;
+}
+
 // Build stage
 // -----------------------------------------------------------------------------
 var stage = new createjs.Stage( "stage" );
@@ -288,30 +383,35 @@ createjs.Ticker.addEventListener( "tick", stage );
 stage.enableMouseOver();
 
 var displayBackground = new DisplayBackground();
-
-var displayStory = new DisplayStory( "Hello!" );
-displayStory.x = 400;
-displayStory.y = 300;
-
-var displayNeighbourPlus1 = new DisplayNeighbourPlus();
-displayNeighbourPlus1.x = 400;
-displayNeighbourPlus1.y = 60;
-
-var displayNeighbourPlus2 = new DisplayNeighbourPlus();
-displayNeighbourPlus2.x = 400;
-displayNeighbourPlus2.y = 600 - 60;
-
-var displayNeighbour3 = new DisplayNeighbour( "Do you like pancakes?" );
-displayNeighbour3.x = 640;
-displayNeighbour3.y = 220;
-
-var displayNeighbour4 = new DisplayNeighbour( "I am not a stalker, I swear!!" );
-displayNeighbour4.x = 640;
-displayNeighbour4.y = 380;
-
 stage.addChild( displayBackground );
-stage.addChild( displayStory );
-stage.addChild( displayNeighbourPlus1 );
-stage.addChild( displayNeighbourPlus2 );
-stage.addChild( displayNeighbour3 );
-stage.addChild( displayNeighbour4 );
+
+getStory( languageId, x, y, function( err, result ) {
+    if ( err ) {
+        throw err;
+    }
+
+    function createScreen( err, result ) {
+        if ( err ) {
+            throw err;
+        }
+
+        if ( result.story === null ) {
+            throw "Story not found!";
+        }
+
+        var displayStoryScreen = new DisplayStoryScreen( result.story,
+            result.neighbours );
+        stage.addChild( displayStoryScreen );
+        displayStoryScreen.x = 400;
+        displayStoryScreen.y = 300;
+    }
+
+    // Maybe coords are out of bounds; in that case, head back to origin
+    if ( result.story === null ) {
+        changePosition( 0, 0 );
+        getStory( languageId, x, y, createScreen );
+    }
+    else {
+        createScreen( null, result );
+    }
+} );
