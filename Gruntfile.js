@@ -8,8 +8,8 @@ module.exports = function ( grunt ) {
     grunt.initConfig( {
         typescript: {
             base: {
-                src: [ "scripts/typings/core.ts" ],
-                dest: "tmp/core.js",
+                src: [ "scripts/typings/Core.ts" ],
+                dest: "tmp/hive.js",
                 options: {
                     module: "amd",
                     target: "es5"
@@ -31,7 +31,7 @@ module.exports = function ( grunt ) {
                         "scripts/libs/reqwest-2.0.5.min.js",
                         "scripts/libs/easeljs-0.8.1.min.js",
                         "scripts/libs/tweenjs-0.6.1.min.js",
-                        "tmp/core.js"
+                        "tmp/hive.js"
                     ]
                 }
             }
