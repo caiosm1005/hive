@@ -1,6 +1,7 @@
 /// <reference path="definitions/createjs/createjs.d.ts" />
+/// <reference path="DisplayStory.ts" />
 
-class DisplayNeighbourPlus extends createjs.Container {
+class DisplayNeighbourPlus extends DisplayStory {
     protected circle:createjs.Shape;
     protected plus:createjs.Shape;
 
@@ -30,6 +31,14 @@ class DisplayNeighbourPlus extends createjs.Container {
         createjs.Tween.get( this.plus )
             .to( { scaleX: 0.9, scaleY: 0.9 }, 300,
                 createjs.Ease.cubicOut);
+    }
+
+    public animAppear():void {
+
+    }
+
+    public animVanish():void {
+
     }
 
     constructor() {

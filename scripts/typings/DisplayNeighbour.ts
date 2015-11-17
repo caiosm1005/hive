@@ -1,7 +1,9 @@
 /// <reference path="definitions/createjs/createjs.d.ts" />
+/// <reference path="Story.ts" />
+/// <reference path="DisplayStory.ts" />
 /// <reference path="DisplayStoryBlobs.ts" />
 
-class DisplayNeighbour extends createjs.Container {
+class DisplayNeighbour extends DisplayStory {
     protected _blobs:DisplayStoryBlobs;
     protected _message:createjs.Text;
     public story:Story;
@@ -24,6 +26,14 @@ class DisplayNeighbour extends createjs.Container {
         createjs.Tween.get( this._message )
             .to( { scaleX: 0.5, scaleY: 0.5 }, 300,
                 createjs.Ease.cubicOut );
+    }
+
+    public animAppear():void {
+
+    }
+
+    public animVanish():void {
+
     }
 
     constructor( story:Story ) {
