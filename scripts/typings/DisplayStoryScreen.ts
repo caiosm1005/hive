@@ -1,5 +1,7 @@
 /// <reference path="definitions/createjs/createjs.d.ts" />
+/// <reference path="Model.ts" />
 /// <reference path="Story.ts" />
+/// <reference path="DisplayBackground.ts" />
 /// <reference path="DisplayStory.ts" />
 /// <reference path="DisplayStoryMain.ts" />
 /// <reference path="DisplayNeighbour.ts" />
@@ -7,11 +9,41 @@
 
 class DisplayStoryScreen extends createjs.Container {
     protected _background:DisplayBackground;
-    protected _displayStory:DisplayStoryMain;
+    protected _foreground:createjs.Container;
+    protected _displayStory:DisplayNeighbour;
     protected _displayNeighbours:DisplayStory[];
     public story:Story;
 
+    public storyCoordToPosition( x:number, y:number ):number[] {
+        var s:number = 70;
+        var h:number = s * Math.sqrt( 3 ) / 2;
+        var tx:number = x * s * 1.5;
+        var ty:number = -y * h * 2 + x * h;
+        return [ tx, ty ];
+    }
+
+    public panTo( x:number, y:number, noTransition?:boolean ):void {
+        if ( ! noTransition ) {
+            createjs.Tween.get( this._foreground )
+                .to( { x: x, y: y }, 420,
+                    createjs.Ease.sineInOut );
+
+           createjs.Tween.get( this._background )
+                .to( { x: x / 3, y: y / 3 }, 420,
+                    createjs.Ease.sineInOut );
+        }
+        else {
+            this._background.x = x / 3;
+            this._background.y = y / 3;
+            this._foreground.x = x;
+            this._foreground.y = y;
+        }
+    }
+
     public moveTo( x:number, y:number, noTransition?:boolean ):void {
+
+        // If new coordinates were given, load the new story and move to that
+        // new position
         if ( ! ( this.story.x == x && this.story.y == y ) ) {
             Model.getStory( this.story.languageId, x, y, (story:Story):void => {
                 this.story = story;
@@ -20,45 +52,82 @@ class DisplayStoryScreen extends createjs.Container {
             return;
         }
 
+        if ( this._displayStory !== null ) {
+            if ( this._displayStory.story.x != x ||
+                this._displayStory.story.y != y ) {
+
+                if ( ! noTransition ) {
+                    this._displayStory.animVanish();
+                }
+                else {
+                    this._foreground.removeChild( this._displayStory );
+                }
+
+                this._displayStory = null;
+            }
+        }
+
         if ( this._displayStory === null ) {
-            this._displayStory = new DisplayStoryMain( this.story );
-            this.addChild( this._displayStory );
+            var coords:number[] = this.storyCoordToPosition( x, y );
+
+            this._displayStory = new DisplayNeighbour( this.story );
+            this._displayStory.x = coords[ 0 ];
+            this._displayStory.y = coords[ 1 ];
+
+            if ( ! noTransition ) {
+                this._displayStory.animAppear();
+            }
+
+            this.panTo( -this._displayStory.x, -this._displayStory.y,
+                noTransition );
+
+            this._foreground.addChild( this._displayStory );
         }
 
         for( var i:number = 0; i < this.story.neighbours.length; i++ ) {
             var neighbour = this.story.neighbours[ i ];
 
-            // Remove old nodes (make them vanish)
             if ( this._displayNeighbours[ i ] !== null ) {
                 if ( this._displayNeighbours[ i ].story.x != neighbour.x ||
                     this._displayNeighbours[ i ].story.y != neighbour.y ) {
-                    this._displayNeighbours[ i ].animVanish();
+
+                    if ( ! noTransition ) {
+                        this._displayNeighbours[ i ].animVanish();
+                    }
+                    else {
+                        this._foreground.removeChild(
+                            this._displayNeighbours[ i ] );
+                    }
+
                     this._displayNeighbours[ i ] = null;
                 }
             }
 
             // Create new nodes, position them and add click callback
             if ( this._displayNeighbours[ i ] === null ) {
-                if ( neighbour === null ) {
-                    this._displayNeighbours[i]=new DisplayNeighbourPlus();
+                if ( neighbour.message === null ) {
+                    this._displayNeighbours[ i ] =
+                        new DisplayNeighbourPlus( neighbour );
                 }
                 else {
                     this._displayNeighbours[i]=new DisplayNeighbour(neighbour);
                 }
+
+                var coords:number[] = this.storyCoordToPosition( neighbour.x,
+                    neighbour.y );
+                this._displayNeighbours[ i ].x = coords[ 0 ];
+                this._displayNeighbours[ i ].y = coords[ 1 ];
+
                 if ( ! noTransition ) {
                     this._displayNeighbours[ i ].animAppear();
                 }
 
-                this.addChild( this._displayNeighbours[ i ] );
+                this._foreground.addChild( this._displayNeighbours[ i ] );
 
-                var angle:number = -Math.PI * 2 * ( (i + 1) / 6 ) + Math.PI / 6;
-                this._displayNeighbours[ i ].x = Math.cos( angle ) * 250;
-                this._displayNeighbours[ i ].y = Math.sin( angle ) * 250;
-
-                this._displayNeighbours[ i ].on( "click", ():void => {
-                    this.moveTo( this._displayNeighbours[ i ].story.x,
-                        this._displayNeighbours[ i ].story.y );
-                } );
+                this._displayNeighbours[ i ].on( "click",
+                    ( e:createjs.Event ):void => {
+                        this.moveTo( e.target.story.x, e.target.story.y );
+                    } );
             }
         }
     }
@@ -68,104 +137,14 @@ class DisplayStoryScreen extends createjs.Container {
 
         this.story = story;
         this._background = new DisplayBackground();
+        this._foreground = new createjs.Container();
+
         this.addChild( this._background );
+        this.addChild( this._foreground );
 
         this._displayStory = null;
-        this._displayNeighbours = [ null, null, null, null, null, null, null ];
+        this._displayNeighbours = [ null, null, null, null, null, null ];
 
         this.moveTo( story.x, story.y, true );
-
-
-
-
-/*
-
-
-        var displayStory:DisplayStory = new DisplayStory( story );
-        var displayStoryUnderneath:DisplayNeighbour=new DisplayNeighbour(story);
-
-        this.addChild( displayStoryUnderneath );
-        this.addChild( displayStory );
-
-        for ( var i:number = 0; i < story.neighbours.length; i++ ) {
-            var neighbour:Story = story.neighbours[ i ];
-            var displayNeighbour:createjs.Container;
-
-            if ( neighbour === null ) {
-                displayNeighbour = new DisplayNeighbourPlus();
-            }
-            else {
-                displayNeighbour = new DisplayNeighbour( neighbour );
-            }
-
-            var angle:number = -Math.PI * 2 * ( (i + 1) / 6 ) + Math.PI / 6;
-            displayNeighbour.x = Math.cos( angle ) * 250;
-            displayNeighbour.y = Math.sin( angle ) * 250;
-            // displayNeighbour.on("click", neighbourClickCallback);
-
-            this.addChild( displayNeighbour );
-        }
-
-        /*
-var container = new createjs.Container();
-    var displayStory = new DisplayStory(story.message);
-
-    function neighbourClickCallback(event) {
-        getStory(languageId, event.target.storyX, event.target.storyY,
-            function(err, result) {
-                if (err) {
-                    throw err;
-                }
-
-                container.moveToNeighbour(event.target);
-                setTimeout(function() { window.location.reload() }, 500);
-            });
-    }
-
-    for (var i = 0; i < neighbours.length; i++) {
-        var neighbour = neighbours[i];
-        var displayNeighbour;
-
-        if (neighbour === null) {
-            displayNeighbour = new DisplayNeighbourPlus();
-        }
-        else {
-            displayNeighbour = new DisplayNeighbour(neighbour.message);
-            displayNeighbour.storyX = neighbour.x;
-            displayNeighbour.storyY = neighbour.y;
-            displayNeighbour.message = neighbour.message;
-        }
-
-        var angle = -Math.PI * 2 * ((i + 1) / 6) + Math.PI / 6;
-        displayNeighbour.x = Math.cos(angle) * 250;
-        displayNeighbour.y = Math.sin(angle) * 250;
-        displayNeighbour.on("click", neighbourClickCallback);
-
-        container.addChild(displayNeighbour);
-    }
-
-    var displayStoryUnderneath = new DisplayNeighbour(story.message);
-    displayStoryUnderneath.storyX = story.x;
-    displayStoryUnderneath.storyY = story.y;
-    displayStoryUnderneath.message = story.message;
-    displayStoryUnderneath.on("click", neighbourClickCallback);
-
-    container.addChild(displayStoryUnderneath);
-    container.addChild(displayStory);
-
-    container.moveToNeighbour = function(displayNeighbour) {
-        displayStory.animateVanish();
-        displayStory = new DisplayStory(displayNeighbour.message);
-        displayStory.x = displayNeighbour.x;
-        displayStory.y = displayNeighbour.y;
-        displayStory.animateAppear();
-
-        container.addChild(displayStory);
-
-        changePosition(displayNeighbour.storyX, displayNeighbour.storyY);
-    };
-
-    return container;
-        */
     }
 }

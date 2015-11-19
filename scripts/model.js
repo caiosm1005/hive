@@ -81,6 +81,29 @@ module.exports = {
                 }
             }
 
+            if ( story === null ) {
+                story = { message: null, x: x, y: y };
+            }
+
+            for( var i = 0; i < storyNeighbours.length; i++ ) {
+                if ( storyNeighbours[ i ] !== null ) {
+                    continue;
+                }
+
+                var coords = [ x, y ];
+
+                switch( i ) {
+                    case 0: coords[ 0 ] += 1; coords[ 1 ] += 1; break; // NE
+                    case 1: coords[ 1 ] += 1;                   break; // N
+                    case 2: coords[ 0 ] -= 1;                   break; // NW
+                    case 3: coords[ 0 ] -= 1; coords[ 1 ] -= 1; break; // SW
+                    case 4: coords[ 1 ] -= 1;                   break; // S
+                    case 5: coords[ 0 ] += 1;                   break; // SE
+                }
+
+                storyNeighbours[ i ] = {message:null, x:coords[0], y:coords[1]};
+            }
+
             callback( null, { story: story, neighbours: storyNeighbours } );
         } );
     },

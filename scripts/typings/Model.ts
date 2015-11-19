@@ -11,6 +11,9 @@ class Model {
                 throw err;
             },
             success: function( result:JSON ): void {
+
+                console.log( result );
+
                 var story:Story = new Story();
                 story.x = result[ "story" ].x;
                 story.y = result[ "story" ].y;
@@ -18,9 +21,6 @@ class Model {
                 story.languageId = languageId;
 
                 for( var i:number = 0; i < result["neighbours"].length; i++ ) {
-                    if ( result[ "neighbours" ][ i ] === null ) {
-                        continue;
-                    }
                     var neighbour:Story = new Story();
                     neighbour.x = result[ "neighbours" ][ i ].x;
                     neighbour.y = result[ "neighbours" ][ i ].y;

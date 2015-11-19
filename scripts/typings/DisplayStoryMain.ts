@@ -47,9 +47,8 @@ class DisplayStoryMain extends DisplayStory {
     }
 
     constructor( story:Story ) {
-        super();
+        super( story );
 
-        this.story = story;
         this._blobs = new DisplayStoryBlobs( 3, 0.65, 170 );
 
         var message = story.message;
@@ -82,7 +81,7 @@ class DisplayStoryMain extends DisplayStory {
         this.addChild( this._message );
 
         this.addEventListener( "tick", ( e:createjs.Event ):void => {
-            this._message.x = this._blobs.centerDeltaX * 6.2 - 4;
+            this._message.x = this._blobs.centerDeltaX * 6.2;
             this._message.y = this._blobs.centerDeltaY * 6.2;
         } );
     }

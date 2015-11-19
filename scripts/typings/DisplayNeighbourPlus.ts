@@ -34,15 +34,21 @@ class DisplayNeighbourPlus extends DisplayStory {
     }
 
     public animAppear():void {
-
+        this.alpha = 0;
+        createjs.Tween.get( this )
+            .to( { alpha: 1 }, 700,
+                createjs.Ease.cubicIn );
     }
 
     public animVanish():void {
-
+        createjs.Tween.get( this )
+            .to( { alpha: 0 }, 700,
+                createjs.Ease.cubicOut )
+            .call( function():void { this.parent.removeChild( this ); } );
     }
 
-    constructor() {
-        super();
+    constructor( story:Story ) {
+        super( story );
 
         this.circle = new createjs.Shape();
         this.circle.graphics.beginFill( "DeepSkyBlue" );

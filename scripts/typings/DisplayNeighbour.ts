@@ -29,17 +29,22 @@ class DisplayNeighbour extends DisplayStory {
     }
 
     public animAppear():void {
-
+        this.alpha = 0;
+        createjs.Tween.get( this )
+            .to( { alpha: 1 }, 700,
+                createjs.Ease.cubicIn );
     }
 
     public animVanish():void {
-
+        createjs.Tween.get( this )
+            .to( { alpha: 0 }, 700,
+                createjs.Ease.cubicOut )
+            .call( function():void { this.parent.removeChild( this ); } );
     }
 
     constructor( story:Story ) {
-        super();
+        super( story );
 
-        this.story = story;
         this._blobs = new DisplayStoryBlobs( 8, 1.5, 25 );
 
         var message = story.message;
@@ -74,8 +79,5 @@ class DisplayNeighbour extends DisplayStory {
 
         this.hitArea = hitArea;
         this.cursor = "pointer";
-
-        this.on( "mouseover", this.animMouseOver );
-        this.on( "mouseout", this.animMouseOut );
     }
 }
