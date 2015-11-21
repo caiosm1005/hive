@@ -1,4 +1,5 @@
 /// <reference path="definitions/createjs/createjs.d.ts" />
+/// <reference path="Hash.ts" />
 /// <reference path="Story.ts" />
 
 abstract class DisplayStory extends createjs.Container {
@@ -49,5 +50,15 @@ abstract class DisplayStory extends createjs.Container {
         this.story = story;
         this.on( "mouseover", this.animMouseOver );
         this.on( "mouseout", this.animMouseOut );
+
+        // Show story coordinates as text when in debug mode
+        if ( Hash.getDebugMode() ) {
+            var message = "[" + story.x + "," + story.y + "]";
+            var font = "10px Arial";
+            var label:createjs.Text=new createjs.Text( message, font, "#AAA" );
+            label.textAlign = "center";
+            label.y = 38;
+            this.addChild( label );
+        }
     }
 }

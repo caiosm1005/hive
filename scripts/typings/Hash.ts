@@ -20,4 +20,16 @@ class Hash {
 
         return [ 0, 0 ];
     }
+
+    public static getDebugMode():boolean {
+        var vars:string[] = this.getVariables();
+
+        for( var i:number = 0; i < vars.length; i++ ) {
+            if ( vars[ i ].toLowerCase() == "debug" ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
