@@ -1,17 +1,29 @@
 class Hash {
-    public static getVariables():string[] {
+    public static getVariables():Array<string> {
         var hash:string = window.location.hash;
         // Remove leading hash character
         hash = hash.replace( /^#/, "" );
-        return hash.split( "&" );
+        return hash.split( ";" );
     }
 
-    public static getPosition():number[] {
+    public static getLanguageId():number {
+        var vars:string[] = this.getVariables();
+
+        for( var i:number = 0; i < vars.length; i++ ) {
+            if ( /^\d+$/.test( vars[ i ] ) ) {
+                return parseInt( vars[ i ] );
+            }
+        }
+
+        return 1;
+    }
+
+    public static getPosition():Array<number> {
         var vars:string[] = this.getVariables();
 
         for( var i:number = 0; i < vars.length; i++ ) {
             if ( /^-?\d+,-?\d+$/.test( vars[ i ] ) ) {
-                var position:string[] = vars[ i ].split( "," );
+                var position:Array<string> = vars[ i ].split( "," );
                 var x:number = parseInt( position[ 0 ] );
                 var y:number = parseInt( position[ 1 ] );
                 return [ x, y ];
@@ -22,7 +34,7 @@ class Hash {
     }
 
     public static getDebugMode():boolean {
-        var vars:string[] = this.getVariables();
+        var vars:Array<string> = this.getVariables();
 
         for( var i:number = 0; i < vars.length; i++ ) {
             if ( vars[ i ].toLowerCase() == "debug" ) {

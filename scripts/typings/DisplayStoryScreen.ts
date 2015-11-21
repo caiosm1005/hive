@@ -1,5 +1,6 @@
 /// <reference path="definitions/createjs/createjs.d.ts" />
 /// <reference path="Model.ts" />
+/// <reference path="Hash.ts" />
 /// <reference path="Story.ts" />
 /// <reference path="DisplayBackground.ts" />
 /// <reference path="DisplayStory.ts" />
@@ -10,11 +11,64 @@
 class DisplayStoryScreen extends createjs.Container {
     protected _background:DisplayBackground;
     protected _foreground:createjs.Container;
-    protected _displayStory:DisplayNeighbour;
-    protected _displayNeighbours:DisplayStory[];
-    public story:Story;
+    protected _displayStories:Array<DisplayStory>;
+    
+    protected _languageId:number;
 
-    public storyCoordToPosition( x:number, y:number ):number[] {
+    protected _addDisplayStory( story:Story ) {
+        var displayStory = new DisplayNeighbour( story );
+        var coords:Array<number> = this._storyCoordToPosition( story.x,story.y );
+
+        displayStory.x = coords[ 0 ];
+        displayStory.y = coords[ 1 ];
+        displayStory.animAppear();
+
+        displayStory.on( "click", ( e:createjs.Event ):void => {
+            this.moveTo( e.target.story.x, e.target.story.y );
+        } );
+
+        this._displayStories.push( displayStory );
+        this._foreground.addChild( displayStory );
+    }
+
+    protected _explore( x:number, y:number, r:number,
+        callback?:( storyBank:StoryBank ) => void ):void {
+        Model.getStories( this._languageId, x, y, r, (storyBank:StoryBank) => {
+            var stories:Array<Story> = storyBank.getAllStories();
+
+            for( var i:number = 0; i < stories.length; i++ ) {
+                var newStory:boolean = true;
+
+                for( var j:number = 0; j < this._displayStories.length; j++ ) {
+                    if ( stories[ i ].x == this._displayStories[ j ].story.x &&
+                        stories[ i ].y == this._displayStories[ j ].story.y ) {
+                        newStory = false;
+                        break;
+                    }
+                }
+
+                if ( newStory ) {
+                    this._addDisplayStory( stories[ i ] );
+                }
+            }
+
+            if ( callback != null ) {
+                callback( storyBank );
+            }
+        } );
+    }
+
+    protected _storyExplored( x:number, y:number ):boolean {
+        for( var i:number = 0; i < this._displayStories.length; i++ ) {
+            if ( this._displayStories[ i ].story.x == x &&
+                this._displayStories[ i ].story.y == y ){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected _storyCoordToPosition( x:number, y:number ):Array<number> {
         var s:number = 70;
         var h:number = s * Math.sqrt( 3 ) / 2;
         var tx:number = x * s * 1.5;
@@ -22,152 +76,65 @@ class DisplayStoryScreen extends createjs.Container {
         return [ tx, ty ];
     }
 
-    public panTo( x:number, y:number, noTransition?:boolean ):void {
-        if ( ! noTransition ) {
-            createjs.Tween.get( this._foreground )
-                .to( { x: x, y: y }, 420,
-                    createjs.Ease.sineInOut );
+    public panTo( x:number, y:number ):void {
+        createjs.Tween.get( this._foreground )
+            .to( { x: -x, y: -y }, 420,
+                createjs.Ease.sineInOut );
 
-           createjs.Tween.get( this._background )
-                .to( { x: x / 3, y: y / 3 }, 420,
-                    createjs.Ease.sineInOut );
+        createjs.Tween.get( this._background )
+            .to( { x: -x / 3, y: -y / 3 }, 420,
+                createjs.Ease.sineInOut );
+    }
+
+    public moveTo( x:number, y:number ):void {
+        // Is there a story at this position that we already know of?
+        var hasStory:boolean = this._storyExplored( x, y );
+
+        // Try to get stories at the given position and range. If that fails,
+        // search at the origin [0,0]. If that also fails, throw an error!
+        if ( ! hasStory ) {
+            this._explore( x, y, 1, ( storyBank:StoryBank ):void => {
+                if ( storyBank.getMainStory() === null ) {
+                    if ( x == 0 && y == 0 ) {
+                        throw "Story not found at origin!";
+                    }
+
+                    this.moveTo( 0, 0 );
+                }
+                else {
+                    var coords:Array<number> = this._storyCoordToPosition(x, y);
+                    this.panTo( coords[ 0 ], coords[ 1 ] );
+                    this._explore( x, y, 4 );
+                }
+            } );
         }
         else {
-            this._background.x = x / 3;
-            this._background.y = y / 3;
-            this._foreground.x = x;
-            this._foreground.y = y;
+            var coords:Array<number> = this._storyCoordToPosition( x, y );
+            this.panTo( coords[ 0 ], coords[ 1 ] );
+            this._explore( x, y, 4 );
         }
     }
 
-    public moveTo( x:number, y:number, noTransition?:boolean ):void {
-
-        // If new coordinates were given, load the new story and move to that
-        // new position
-        if ( ! ( this.story.x == x && this.story.y == y ) ) {
-            Model.getStory( this.story.languageId, x, y, (story:Story):void => {
-                this.story = story;
-                this.moveTo( x, y, noTransition );
-            } );
-            return;
-        }
-
-        if ( this._displayStory !== null ) {
-            if ( this._displayStory.story.x != x ||
-                this._displayStory.story.y != y ) {
-
-                if ( ! noTransition ) {
-                    this._displayStory.animVanish();
-                }
-                else {
-                    this._foreground.removeChild( this._displayStory );
-                }
-
-                this._displayStory = null;
-            }
-        }
-
-        if ( this._displayStory === null ) {
-            var coords:number[] = this.storyCoordToPosition( x, y );
-
-            this._displayStory = new DisplayNeighbour( this.story );
-            this._displayStory.x = coords[ 0 ];
-            this._displayStory.y = coords[ 1 ];
-
-            if ( ! noTransition ) {
-                this._displayStory.animAppear();
-            }
-
-            this.panTo( -this._displayStory.x, -this._displayStory.y,
-                noTransition );
-
-            this._foreground.addChild( this._displayStory );
-        }
-
-        // Re-order array items and remove off-screen neighbours
-        var sDisplayNeighbours:DisplayStory[] = [null,null,null,null,null,null];
-        
-        for( var i:number = 0; i < this._displayNeighbours.length; i++ ) {
-            var displayNeighbour = this._displayNeighbours[ i ];
-
-            if ( displayNeighbour === null ) {
-                continue;
-            }
-
-            var isNeighbour:boolean = false;
-
-            if (displayNeighbour.story.x == x && displayNeighbour.story.y == y){
-                isNeighbour = true;
-            }
-            else {
-                for( var j:number = 0; j < this.story.neighbours.length; j++ ) {
-                    var neighbour = this.story.neighbours[ j ];
-                    if ( displayNeighbour.story.x == neighbour.x &&
-                        displayNeighbour.story.y == neighbour.y ) {
-                        sDisplayNeighbours[ j ] = displayNeighbour;
-                        isNeighbour = true;
-                        break;
-                    }
-                }
-            }
-
-            if ( ! isNeighbour ) {
-                if ( ! noTransition ) {
-                    displayNeighbour.animVanish();
-                }
-                else {
-                    this._foreground.removeChild( displayNeighbour );
-                }
-            }
-        }
-
-        this._displayNeighbours = sDisplayNeighbours;
-
-        // Create new nodes, position them and add click callback
-        for( var i:number = 0; i < this.story.neighbours.length; i++ ) {
-            if ( this._displayNeighbours[ i ] !== null ) {
-                continue;
-            }
-
-            var neighbour = this.story.neighbours[ i ];
-
-            if ( neighbour.message === null ) {
-                this._displayNeighbours[i]=new DisplayNeighbourPlus(neighbour);
-            }
-            else {
-                this._displayNeighbours[i]=new DisplayNeighbour(neighbour);
-            }
-
-            var coords:number[] = this.storyCoordToPosition( neighbour.x,
-                neighbour.y );
-            this._displayNeighbours[ i ].x = coords[ 0 ];
-            this._displayNeighbours[ i ].y = coords[ 1 ];
-
-            if ( ! noTransition ) {
-                this._displayNeighbours[ i ].animAppear();
-            }
-
-            this._foreground.addChild( this._displayNeighbours[ i ] );
-
-            this._displayNeighbours[ i ].on("click", (e:createjs.Event):void =>{
-                this.moveTo( e.target.story.x, e.target.story.y );
-            });
-        }
-    }
-
-    constructor( story:Story ) {
+    constructor() {
         super();
 
-        this.story = story;
+        var hashPosition = Hash.getPosition();
+        this._languageId = Hash.getLanguageId();
+
         this._background = new DisplayBackground();
         this._foreground = new createjs.Container();
 
         this.addChild( this._background );
         this.addChild( this._foreground );
 
-        this._displayStory = null;
-        this._displayNeighbours = [ null, null, null, null, null, null ];
+        this._displayStories = new Array<DisplayStory>();
 
-        this.moveTo( story.x, story.y, true );
+        this.moveTo( hashPosition[ 0 ], hashPosition[ 1 ] );
+
+        // Explore every 5 seconds
+        setInterval( ():void => {
+            hashPosition = Hash.getPosition();
+            this._explore( hashPosition[ 0 ], hashPosition[ 1 ], 4 );
+        }, 5000 );
     }
 }

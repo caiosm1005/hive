@@ -12,10 +12,10 @@ class DisplayStoryBlobs extends createjs.Container {
 
         speed /= 100;
 
-        var circleTimes1:number[] = [];
-        var circleTimes2:number[] = [];
-        var circleOffsets:number[][] = [];
-        var circles:createjs.Shape[] = [];
+        var circleTimes1:Array<number> = [];
+        var circleTimes2:Array<number> = [];
+        var circleOffsets:Array<Array<number>> = [];
+        var circles:Array<createjs.Shape> = [];
 
         for( var i:number = 0; i < numBlobs; i++ ) {
             var circle:createjs.Shape = new createjs.Shape();

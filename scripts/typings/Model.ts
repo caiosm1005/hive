@@ -1,33 +1,36 @@
 /// <reference path="definitions/reqwest/reqwest.d.ts" />
 /// <reference path="Story.ts" />
+/// <reference path="StoryBank.ts" />
 
 class Model {
-    static getStory( languageId:number, x:number, y:number,
-        successCallback:( story:Story ) => void ):void {
-        reqwest( {
-            url: "api/story/" + languageId + "/" + x + "/" + y,
-            method: "get",
-            error: function( err:any ): void {
-                throw err;
-            },
-            success: function( result:JSON ): void {
-                var story:Story = new Story();
-                story.x = result[ "story" ].x;
-                story.y = result[ "story" ].y;
-                story.message = result[ "story" ].message;
-                story.languageId = languageId;
+    protected static _requestCooldown:number = 450;
+    protected static _lastRequest:number = 0;
 
-                for( var i:number = 0; i < result["neighbours"].length; i++ ) {
-                    var neighbour:Story = new Story();
-                    neighbour.x = result[ "neighbours" ][ i ].x;
-                    neighbour.y = result[ "neighbours" ][ i ].y;
-                    neighbour.message = result[ "neighbours" ][ i ].message;
-                    neighbour.languageId = languageId;
-                    story.neighbours[ i ] = neighbour;
+    static getStories( languageId:number, x:number, y:number, r:number,
+        callback:( storyBank:StoryBank ) => void ):void {
+
+        var currentTime = new Date().getTime();
+
+        if ( currentTime - this._lastRequest <= this._requestCooldown ) {
+            setTimeout( ():void => {
+                this.getStories( languageId, x, y, r, callback );
+            }, this._requestCooldown );
+        }
+        else {
+            reqwest( {
+                url: "api/story/" + languageId + "/" + x + "/" + y + "/" + r,
+                method: "get",
+                error: function( err:string ): void {
+                    throw err;
+                },
+                success: function( stories:Array<Story> ): void {
+                    for( var i:number = 0; i < stories.length; i++ ) {
+                        stories[ i ].languageId = languageId;
+                    }
+                    var storyBank:StoryBank = new StoryBank( x, y, stories );
+                    callback( storyBank );
                 }
-
-                successCallback( story );
-            }
-        } );
+            } );
+        }
     }
 }

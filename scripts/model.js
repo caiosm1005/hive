@@ -6,6 +6,12 @@ var connectionUser = "";     // TODO: Replace with production values
 var connectionPassword = ""; //
 var connectionDatabase = ""; //
 
+// List of clients by remote address and the timestamp of their last request
+// This is used to initiate a cooldown each time a client sends a model request
+// to avoid server overload
+var connectionClients = {};
+var connectionCooldown = 200;
+
 if ( process.env[ "NODE_ENV" ] == "development" ) {
     connectionHost = "localhost";
     connectionUser = "root";
@@ -21,139 +27,155 @@ var pool = mysql.createPool( {
     database: connectionDatabase
 } );
 
-module.exports = {
-    getStory: function( languageId, x, y, callback ) {
-        var oldX = x;
-        var oldY = y;
-        x = parseInt( x );
-        y = parseInt( y );
+function renewConnectionClients() {
+    var clients = {};
+    var currentTime = new Date().getTime();
 
-        if ( oldX != x || oldY != y || isNaN( x ) || isNaN( y ) ) {
-            callback( "Requested position is invalid" );
+    for( var client in connectionClients ) {
+        if ( currentTime - connectionClients[ client ] <= connectionCooldown ) {
+            clients[ client ] = connectionClients[ client ];
+        }
+    }
+
+    connectionClients = clients;
+}
+
+function checkConnectionClient( remoteAddress ) {
+    if ( remoteAddress === null ) {
+        return false;
+    }
+
+    renewConnectionClients();
+
+    for( var client in connectionClients ) {
+        if ( client == remoteAddress ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function addConnectionClient( remoteAddress ) {
+    if ( remoteAddress === null ) {
+        return;
+    }
+
+    var currentTime = new Date().getTime();
+    connectionClients[ remoteAddress ] = currentTime;
+}
+
+// Story variables
+var storyMaxRadius = 4;
+var storyMinChars = 3;
+var storyMaxChars = 35;
+
+module.exports = {
+    getStories: function( languageId, x, y, r, remoteAddress, callback ) {
+        if ( checkConnectionClient( remoteAddress ) ) {
+            callback( "100 Too many requests" );
             return;
         }
 
-        var sql, esc;
+        addConnectionClient( remoteAddress );
 
-        sql = "SELECT message, x, y FROM story " +
-            "WHERE story.language_id = ? AND (" +
-            "story.x = ? AND story.y = ? OR " +
-            "story.x = ? + 1 AND story.y = ? + 1 OR " +  // NE   index: 0
-            "story.x = ?     AND story.y = ? + 1 OR " +  // N    index: 1
-            "story.x = ? - 1 AND story.y = ?     OR " +  // NW   index: 2
-            "story.x = ? - 1 AND story.y = ? - 1 OR " +  // SW   index: 3
-            "story.x = ?     AND story.y = ? - 1 OR " +  // S    index: 4
-            "story.x = ? + 1 AND story.y = ?)";          // SE   index: 5
-        esc = [ languageId, x, y, x, y, x, y, x, y, x, y, x, y, x, y ];
+        var _x = x;
+        var _y = y;
+        var _r = r;
+        x = parseInt( x );
+        y = parseInt( y );
+        r = parseInt( r );
+
+        if ( _x!=x || _y!=y || _r!=r || isNaN(x) || isNaN(y) || isNaN(r) ) {
+            callback( "101 Requested position or radius is invalid" );
+            return;
+        }
+
+        if ( r > storyMaxRadius ) {
+            callback( "102 Requested radius is too large" );
+            return;
+        }
+
+        if ( r < 0 ) {
+            callback( "103 Requested radius must be greater than zero" );
+            return;
+        }
+
+        var sql = "SELECT message, x, y FROM story " +
+            "WHERE story.language_id = ? AND " +
+            "story.x - ? BETWEEN -? AND ? AND " +
+            "story.y - ? BETWEEN -? AND ? AND " +
+            "-(story.x - ?) + (story.y - ?) BETWEEN -? AND ?";
+        esc = [ languageId, x, r, r, y, r, r, x, y, r, r ];
         
         pool.query( sql, esc, function( err, rows, fields ) {
             if ( err ) {
                 callback( err );
                 return;
             }
-
-            var story = null;
-            var storyNeighbours = [ null, null, null, null, null, null ];
-
-            for( var i = 0; i < rows.length; i++ ) {
-                var currentStory = rows[ i ];
-
-                if ( currentStory.x == x && currentStory.y == y ) {
-                    story = currentStory;
-                }
-                else if ( currentStory.x == x + 1 && currentStory.y == y + 1 ) {
-                    storyNeighbours[ 0 ] = currentStory;
-                }
-                else if ( currentStory.x == x && currentStory.y == y + 1 ) {
-                    storyNeighbours[ 1 ] = currentStory;
-                }
-                else if ( currentStory.x == x - 1 && currentStory.y == y ) {
-                    storyNeighbours[ 2 ] = currentStory;
-                }
-                else if ( currentStory.x == x - 1 && currentStory.y == y - 1 ) {
-                    storyNeighbours[ 3 ] = currentStory;
-                }
-                else if ( currentStory.x == x && currentStory.y == y - 1 ) {
-                    storyNeighbours[ 4 ] = currentStory;
-                }
-                else if ( currentStory.x == x + 1 && currentStory.y == y ) {
-                    storyNeighbours[ 5 ] = currentStory;
-                }
-            }
-
-            if ( story === null ) {
-                story = { message: null, x: x, y: y };
-            }
-
-            for( var i = 0; i < storyNeighbours.length; i++ ) {
-                if ( storyNeighbours[ i ] !== null ) {
-                    continue;
-                }
-
-                var coords = [ x, y ];
-
-                switch( i ) {
-                    case 0: coords[ 0 ] += 1; coords[ 1 ] += 1; break; // NE
-                    case 1: coords[ 1 ] += 1;                   break; // N
-                    case 2: coords[ 0 ] -= 1;                   break; // NW
-                    case 3: coords[ 0 ] -= 1; coords[ 1 ] -= 1; break; // SW
-                    case 4: coords[ 1 ] -= 1;                   break; // S
-                    case 5: coords[ 0 ] += 1;                   break; // SE
-                }
-
-                storyNeighbours[ i ] = {message:null, x:coords[0], y:coords[1]};
-            }
-
-            callback( null, { story: story, neighbours: storyNeighbours } );
+            callback( null, rows );
         } );
     },
 
     createStory: function( languageId, message, x, y, remoteAddress, callback ){
-        var oldX = x;
-        var oldY = y;
+        if ( checkConnectionClient( remoteAddress ) ) {
+            callback( "100 Too many requests" );
+            return;
+        }
+
+        addConnectionClient( remoteAddress );
+
+        var _x = x;
+        var _y = y;
         x = parseInt( x );
         y = parseInt( y );
 
-        if ( oldX != x || oldY != y || isNaN( x ) || isNaN( y ) ) {
-            callback( "Requested position is invalid" );
+        if ( _x != x || _y != y || isNaN( x ) || isNaN( y ) ) {
+            callback( "101 Requested position or radius is invalid" );
             return;
         }
 
-        if ( message.length > 35 ) {
-            callback( "Message exceeds character count limit of 35" );
+        if ( message.length > storyMaxChars ) {
+            callback( "104 Message exceeds character count limit" );
             return;
         }
 
-        if ( message.length < 3 ) {
-            callback( "Message is too short" );
+        if ( message.length < storyMinChars ) {
+            callback( "105 Message is too short" );
             return;
         }
 
-        hive.getStory( languageId, x, y, function( err, result ) {
+        this.getStories( languageId, x, y, 1, null, function( err, stories ) {
             if ( err ) {
                 callback( err );
                 return;
             }
 
-            var story = result.story;
-            var neighbours = result.neighbours;
-            var hasNeighbours = false;
+            var hasNeighbour = false;
+            var repeatedMessage = false;
 
-            if ( story !== null ) {
-                callback( "A story already exists at the requested position" );
-                return;
-            }
+            // Check if the given position is occupied
+            for( var i = 0; i < stories.length; i++ ) {
+                if ( stories[ i ].x == x && stories[ i ].y == y ) {
+                    callback( "106 A story already exists " +
+                        "at the given position" );
+                    return;
+                }
 
-            for( var i = 0; i < neighbours.length; i++ ) {
-                if ( neighbours[ i ] !== null ) {
-                    hasNeighbours = true;
-                    break;
+                hasNeighbour = true;
+
+                if ( stories[ i ].message == message ) {
+                    repeatedMessage = true;
                 }
             }
 
-            if ( ! hasNeighbours ) {
-                callback( "Cannot create a story without a neighbour: " +
-                    "it must be adjacent to another story" );
+            if ( ! hasNeighbour ) {
+                callback( "107 Cannot create story without a neighbour" );
+                return;
+            }
+
+            if ( repeatedMessage ) {
+                callback( "108 Repeated message" );
                 return;
             }
 
