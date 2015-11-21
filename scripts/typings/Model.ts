@@ -11,9 +11,6 @@ class Model {
                 throw err;
             },
             success: function( result:JSON ): void {
-
-                console.log( result );
-
                 var story:Story = new Story();
                 story.x = result[ "story" ].x;
                 story.y = result[ "story" ].y;

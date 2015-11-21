@@ -56,7 +56,7 @@ class DisplayStoryMain extends DisplayStory {
         var size:string = "140px";
 
         if ( message.length > 15 ) {
-            message = wrapMessage( message, 15 );
+            message = this._wrapMessage( message, 15 );
             baseline = "bottom";
         }
 

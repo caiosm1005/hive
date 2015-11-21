@@ -84,51 +84,74 @@ class DisplayStoryScreen extends createjs.Container {
             this._foreground.addChild( this._displayStory );
         }
 
-        for( var i:number = 0; i < this.story.neighbours.length; i++ ) {
-            var neighbour = this.story.neighbours[ i ];
+        // Re-order array items and remove off-screen neighbours
+        var sDisplayNeighbours:DisplayStory[] = [null,null,null,null,null,null];
+        
+        for( var i:number = 0; i < this._displayNeighbours.length; i++ ) {
+            var displayNeighbour = this._displayNeighbours[ i ];
 
-            if ( this._displayNeighbours[ i ] !== null ) {
-                if ( this._displayNeighbours[ i ].story.x != neighbour.x ||
-                    this._displayNeighbours[ i ].story.y != neighbour.y ) {
+            if ( displayNeighbour === null ) {
+                continue;
+            }
 
-                    if ( ! noTransition ) {
-                        this._displayNeighbours[ i ].animVanish();
+            var isNeighbour:boolean = false;
+
+            if (displayNeighbour.story.x == x && displayNeighbour.story.y == y){
+                isNeighbour = true;
+            }
+            else {
+                for( var j:number = 0; j < this.story.neighbours.length; j++ ) {
+                    var neighbour = this.story.neighbours[ j ];
+                    if ( displayNeighbour.story.x == neighbour.x &&
+                        displayNeighbour.story.y == neighbour.y ) {
+                        sDisplayNeighbours[ j ] = displayNeighbour;
+                        isNeighbour = true;
+                        break;
                     }
-                    else {
-                        this._foreground.removeChild(
-                            this._displayNeighbours[ i ] );
-                    }
-
-                    this._displayNeighbours[ i ] = null;
                 }
             }
 
-            // Create new nodes, position them and add click callback
-            if ( this._displayNeighbours[ i ] === null ) {
-                if ( neighbour.message === null ) {
-                    this._displayNeighbours[ i ] =
-                        new DisplayNeighbourPlus( neighbour );
+            if ( ! isNeighbour ) {
+                if ( ! noTransition ) {
+                    displayNeighbour.animVanish();
                 }
                 else {
-                    this._displayNeighbours[i]=new DisplayNeighbour(neighbour);
+                    this._foreground.removeChild( displayNeighbour );
                 }
-
-                var coords:number[] = this.storyCoordToPosition( neighbour.x,
-                    neighbour.y );
-                this._displayNeighbours[ i ].x = coords[ 0 ];
-                this._displayNeighbours[ i ].y = coords[ 1 ];
-
-                if ( ! noTransition ) {
-                    this._displayNeighbours[ i ].animAppear();
-                }
-
-                this._foreground.addChild( this._displayNeighbours[ i ] );
-
-                this._displayNeighbours[ i ].on( "click",
-                    ( e:createjs.Event ):void => {
-                        this.moveTo( e.target.story.x, e.target.story.y );
-                    } );
             }
+        }
+
+        this._displayNeighbours = sDisplayNeighbours;
+
+        // Create new nodes, position them and add click callback
+        for( var i:number = 0; i < this.story.neighbours.length; i++ ) {
+            if ( this._displayNeighbours[ i ] !== null ) {
+                continue;
+            }
+
+            var neighbour = this.story.neighbours[ i ];
+
+            if ( neighbour.message === null ) {
+                this._displayNeighbours[i]=new DisplayNeighbourPlus(neighbour);
+            }
+            else {
+                this._displayNeighbours[i]=new DisplayNeighbour(neighbour);
+            }
+
+            var coords:number[] = this.storyCoordToPosition( neighbour.x,
+                neighbour.y );
+            this._displayNeighbours[ i ].x = coords[ 0 ];
+            this._displayNeighbours[ i ].y = coords[ 1 ];
+
+            if ( ! noTransition ) {
+                this._displayNeighbours[ i ].animAppear();
+            }
+
+            this._foreground.addChild( this._displayNeighbours[ i ] );
+
+            this._displayNeighbours[ i ].on("click", (e:createjs.Event):void =>{
+                this.moveTo( e.target.story.x, e.target.story.y );
+            });
         }
     }
 

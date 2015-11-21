@@ -51,7 +51,7 @@ class DisplayNeighbour extends DisplayStory {
         var baseline:string = "middle";
 
         if ( message.length > 15 ) {
-            message = wrapMessage( message, 15 );
+            message = this._wrapMessage( message, 15 );
             baseline = "bottom";
         }
 
