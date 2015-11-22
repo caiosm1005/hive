@@ -84,5 +84,9 @@ class DisplayStoryMain extends DisplayStory {
             this._message.x = this._blobs.centerDeltaX * 6.2;
             this._message.y = this._blobs.centerDeltaY * 6.2;
         } );
+
+        // TODO: Remove scale down
+        this.scaleX = 0.5;
+        this.scaleY = 0.5;
     }
 }

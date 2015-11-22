@@ -11,6 +11,8 @@
 class DisplayStoryScreen extends createjs.Container {
     protected _foreground:createjs.Container;
     protected _displayStories:Array<DisplayStory>;
+    protected _mainDisplayStory:DisplayStoryMain;
+
     protected _cachedStories:Array<Story>;
     protected _languageId:number;
     protected _storyX:number;
@@ -143,9 +145,8 @@ class DisplayStoryScreen extends createjs.Container {
             var oldStory:Story = this._displayStories[ i ].story;
             var story:Story = this._getCachedStoryAt( oldStory.x, oldStory.y );
             
-            var isDifferent:boolean;
-
-            isDifferent = story !== null && ( story.message!=oldStory.message ||
+            var isDifferent:boolean =
+                story !== null && ( story.message!=oldStory.message ||
                 oldStory.x != story.x || oldStory.y != story.y ) ||
                 story === null && oldStory.message !== null;
 
@@ -194,6 +195,26 @@ class DisplayStoryScreen extends createjs.Container {
                 this._foreground.addChild( displayStory );
             }
         }
+
+        // Lastly, update the main display story
+        if ( this._mainDisplayStory !== null ) {
+            if ( this._mainDisplayStory.story.x != this._storyX ||
+                this._mainDisplayStory.story.y != this._storyY ) {
+                this._mainDisplayStory.animVanish();
+                this._mainDisplayStory = null;
+            }
+        }
+
+        if ( this._mainDisplayStory === null ) {
+            var story:Story = this._getCachedStoryAt(this._storyX,this._storyY);
+            var coords:Array<number> = this._storyToPosition(
+                story.x, story.y );
+            this._mainDisplayStory = new DisplayStoryMain( story );
+            this._mainDisplayStory.x = coords[ 0 ];
+            this._mainDisplayStory.y = coords[ 1 ];
+            this._mainDisplayStory.animAppear();
+            this._foreground.addChild( this._mainDisplayStory );
+        }
     }
 
     public panTo( x:number, y:number ):void {
@@ -206,6 +227,16 @@ class DisplayStoryScreen extends createjs.Container {
         // Is there a story at this position that we already know of?
         var hasStory:boolean = this._getCachedStoryAt( x, y ) !== null;
 
+        var moveCallback = ():void => {
+            var coords:Array<number> = this._storyToPosition( x, y );
+            // this.panTo( coords[ 0 ], coords[ 1 ] );
+            this._explore( x, y, 4 );
+            this._storyX = x;
+            this._storyY = y;
+            this._refreshDisplayStories();
+            Hash.setPosition( x, y );
+        }
+
         // Try to get stories at the given position and range. If that fails,
         // search at the origin [0,0]. If that also fails, throw an error!
         if ( ! hasStory ) {
@@ -214,36 +245,26 @@ class DisplayStoryScreen extends createjs.Container {
                     if ( x == 0 && y == 0 ) {
                         throw "Story not found at origin!";
                     }
-
                     this.moveTo( 0, 0 );
                 }
                 else {
-                    var coords:Array<number> = this._storyToPosition( x, y );
-                    this.panTo( coords[ 0 ], coords[ 1 ] );
-                    this._explore( x, y, 4 );
-                    this._storyX = x;
-                    this._storyY = y;
-                    Hash.setPosition( x, y );
+                    moveCallback();
                 }
             } );
         }
         else {
-            var coords:Array<number> = this._storyToPosition( x, y );
-            this.panTo( coords[ 0 ], coords[ 1 ] );
-            this._explore( x, y, 4 );
-            this._storyX = x;
-            this._storyY = y;
-            Hash.setPosition( x, y );
+            moveCallback();
         }
     }
 
     constructor() {
         super();
 
-        var hashPosition = Hash.getPosition();
-
         this._foreground = new createjs.Container();
         this._displayStories = new Array<DisplayStory>();
+        this._mainDisplayStory = null;
+        
+        var hashPosition = Hash.getPosition();
         this._cachedStories = new Array<Story>();
         this._languageId = Hash.getLanguageId();
         this._storyX = hashPosition[ 0 ];
