@@ -44,4 +44,22 @@ class Hash {
 
         return false;
     }
+
+    public static setVariables( vars:Array<string> ):void {
+        window.location.hash = "#" + vars.join( ";" );
+    }
+
+    public static setPosition( x:number, y:number ):void {
+        var vars:Array<string> = this.getVariables();
+
+        for( var i:number = 0; i < vars.length; i++ ) {
+            if ( /^-?\d+,-?\d+$/.test( vars[ i ] ) ) {
+                vars.splice( i, 1 );
+                i--;
+            }
+        }
+        
+        vars.push( x + "," + y );
+        this.setVariables( vars );
+    }
 }

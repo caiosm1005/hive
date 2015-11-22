@@ -41,6 +41,9 @@ function renewConnectionClients() {
 }
 
 function checkConnectionClient( remoteAddress ) {
+    // TODO: Find a better way of bottlenecking request spam
+    return false;
+
     if ( remoteAddress === null ) {
         return false;
     }

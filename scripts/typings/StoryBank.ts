@@ -1,13 +1,28 @@
 /// <reference path="Story.ts" />
 
 class StoryBank {
-    protected _x:number;
-    protected _y:number;
     protected _mainStory:Story;
     protected _neighbours:Array<Story>;
+    public x:number;
+    public y:number;
+    public r:number;
 
     public getMainStory():Story {
         return this._mainStory;
+    }
+
+    public getStoryAt( x:number, y:number ):Story {
+        if ( this._mainStory.x == x && this._mainStory.y == y ) {
+            return this._mainStory;
+        }
+
+        for( var i:number = 0; i < this._neighbours.length; i++ ) {
+            if ( this._neighbours[ i ].x == x && this._neighbours[ i ].y == y ){
+                return this._neighbours[ i ];
+            }
+        }
+
+        return null;
     }
 
     public getAllStories():Array<Story> {
@@ -22,7 +37,10 @@ class StoryBank {
         return this._neighbours;
     }
 
-    constructor( x:number, y:number, stories:Array<Story> ) {
+    constructor( x:number, y:number, r:number, stories:Array<Story> ) {
+        this.x = x;
+        this.y = y;
+        this.r = r;
         this._mainStory = null;
         this._neighbours = new Array<Story>();
 
