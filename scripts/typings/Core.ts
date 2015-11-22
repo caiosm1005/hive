@@ -22,6 +22,7 @@ class Core {
         createjs.Ticker.setFPS( 60 );
         createjs.Ticker.addEventListener( "tick", stage );
         stage.enableMouseOver();
+        stage.mouseMoveOutside = true;
 
         var displayStoryScreen:DisplayStoryScreen = new DisplayStoryScreen();
         stage.addChild( displayStoryScreen );

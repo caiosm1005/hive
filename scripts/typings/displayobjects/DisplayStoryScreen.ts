@@ -6,9 +6,10 @@
 /// <reference path="DisplayStoryMain.ts" />
 /// <reference path="DisplayStoryNeighbour.ts" />
 /// <reference path="DisplayStoryNeighbourPlus.ts" />
+/// <reference path="DisplayStoryScreenDraggable.ts" />
 
 class DisplayStoryScreen extends createjs.Container {
-    protected _foreground:createjs.Container;
+    protected _foreground:DisplayStoryScreenDraggable;
     protected _displayStories:Array<DisplayStory>;
     protected _mainDisplayStory:DisplayStoryMain;
 
@@ -116,7 +117,7 @@ class DisplayStoryScreen extends createjs.Container {
     }
 
     protected _storyToPosition(storyX:number,storyY:number):Array<number> {
-        var s:number = 70;
+        var s:number = 80;
         var h:number = s * Math.sqrt( 3 ) / 2;
         var tx:number = storyX * s * 1.5;
         var ty:number = -storyY * h * 2 + storyX * h;
@@ -259,7 +260,7 @@ class DisplayStoryScreen extends createjs.Container {
     constructor() {
         super();
 
-        this._foreground = new createjs.Container();
+        this._foreground = new DisplayStoryScreenDraggable();
         this._displayStories = new Array<DisplayStory>();
         this._mainDisplayStory = null;
         
