@@ -1,12 +1,11 @@
-/// <reference path="definitions/createjs/createjs.d.ts" />
-/// <reference path="Model.ts" />
-/// <reference path="Hash.ts" />
-/// <reference path="Story.ts" />
-/// <reference path="DisplayBackground.ts" />
+/// <reference path="../definitions/createjs/createjs.d.ts" />
+/// <reference path="../Model.ts" />
+/// <reference path="../Hash.ts" />
+/// <reference path="../Story.ts" />
 /// <reference path="DisplayStory.ts" />
 /// <reference path="DisplayStoryMain.ts" />
-/// <reference path="DisplayNeighbour.ts" />
-/// <reference path="DisplayNeighbourPlus.ts" />
+/// <reference path="DisplayStoryNeighbour.ts" />
+/// <reference path="DisplayStoryNeighbourPlus.ts" />
 
 class DisplayStoryScreen extends createjs.Container {
     protected _foreground:createjs.Container;
@@ -175,10 +174,10 @@ class DisplayStoryScreen extends createjs.Container {
                 var displayStory:DisplayStory;
 
                 if ( story.message !== null ) {
-                    displayStory = new DisplayNeighbour( story );
+                    displayStory = new DisplayStoryNeighbour( story );
                 }
                 else {
-                    displayStory = new DisplayNeighbourPlus( story );
+                    displayStory = new DisplayStoryNeighbourPlus( story );
                 }
 
                 var coords:Array<number> = this._storyToPosition( story.x,

@@ -1,6 +1,6 @@
-/// <reference path="definitions/createjs/createjs.d.ts" />
-/// <reference path="Hash.ts" />
-/// <reference path="Story.ts" />
+/// <reference path="../definitions/createjs/createjs.d.ts" />
+/// <reference path="../Hash.ts" />
+/// <reference path="../Story.ts" />
 
 abstract class DisplayStory extends createjs.Container {
     public story:Story;

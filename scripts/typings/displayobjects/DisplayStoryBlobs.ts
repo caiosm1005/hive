@@ -1,4 +1,4 @@
-/// <reference path="definitions/createjs/createjs.d.ts" />
+/// <reference path="../definitions/createjs/createjs.d.ts" />
 
 class DisplayStoryBlobs extends createjs.Container {
     public centerDeltaX:number;

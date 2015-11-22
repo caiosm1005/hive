@@ -1,7 +1,7 @@
-/// <reference path="definitions/createjs/createjs.d.ts" />
+/// <reference path="../definitions/createjs/createjs.d.ts" />
 /// <reference path="DisplayStory.ts" />
 
-class DisplayNeighbourPlus extends DisplayStory {
+class DisplayStoryNeighbourPlus extends DisplayStory {
     protected circle:createjs.Shape;
     protected plus:createjs.Shape;
 

@@ -1,5 +1,5 @@
-/// <reference path="definitions/createjs/createjs.d.ts" />
-/// <reference path="Story.ts" />
+/// <reference path="../definitions/createjs/createjs.d.ts" />
+/// <reference path="../Story.ts" />
 /// <reference path="DisplayStory.ts" />
 /// <reference path="DisplayStoryBlobs.ts" />
 

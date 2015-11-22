@@ -1,7 +1,6 @@
 /// <reference path="Model.ts" />
 /// <reference path="Hash.ts" />
-/// <reference path="DisplayBackground.ts" />
-/// <reference path="DisplayStoryScreen.ts" />
+/// <reference path="displayobjects/DisplayStoryScreen.ts" />
 
 class Core {
     static init():void {

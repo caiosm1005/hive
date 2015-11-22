@@ -1,9 +1,9 @@
-/// <reference path="definitions/createjs/createjs.d.ts" />
-/// <reference path="Story.ts" />
+/// <reference path="../definitions/createjs/createjs.d.ts" />
+/// <reference path="../Story.ts" />
 /// <reference path="DisplayStory.ts" />
 /// <reference path="DisplayStoryBlobs.ts" />
 
-class DisplayNeighbour extends DisplayStory {
+class DisplayStoryNeighbour extends DisplayStory {
     protected _blobs:DisplayStoryBlobs;
     protected _message:createjs.Text;
     public story:Story;
