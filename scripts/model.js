@@ -1,4 +1,5 @@
 var mysql = require( "mysql" );
+var msg = require( "./msg" );
 
 var connectionLimit = 4;
 var connectionHost = "";     //
@@ -76,7 +77,7 @@ var storyMaxChars = 35;
 module.exports = {
     getStories: function( languageId, x, y, r, remoteAddress, callback ) {
         if ( checkConnectionClient( remoteAddress ) ) {
-            callback( "100 Too many requests" );
+            callback( msg.getMessage( "ERROR", "TOO_MANY_REQUESTS" ) );
             return;
         }
 
@@ -90,17 +91,12 @@ module.exports = {
         r = parseInt( r );
 
         if ( _x!=x || _y!=y || _r!=r || isNaN(x) || isNaN(y) || isNaN(r) ) {
-            callback( "101 Requested position or radius is invalid" );
+            callback( msg.getMessage( "ERROR", "POS_RADIUS_INVALID" ) );
             return;
         }
 
-        if ( r > storyMaxRadius ) {
-            callback( "102 Requested radius is too large" );
-            return;
-        }
-
-        if ( r < 0 ) {
-            callback( "103 Requested radius must be greater than zero" );
+        if ( r > storyMaxRadius || r < 0 ) {
+            callback(msg.getMessage( "ERROR", "RADIUS_SIZE", storyMaxRadius ));
             return;
         }
 
@@ -122,7 +118,7 @@ module.exports = {
 
     createStory: function( languageId, message, x, y, remoteAddress, callback ){
         if ( checkConnectionClient( remoteAddress ) ) {
-            callback( "100 Too many requests" );
+            callback( msg.getMessage( "ERROR", "TOO_MANY_REQUESTS" ) );
             return;
         }
 
@@ -134,17 +130,13 @@ module.exports = {
         y = parseInt( y );
 
         if ( _x != x || _y != y || isNaN( x ) || isNaN( y ) ) {
-            callback( "101 Requested position or radius is invalid" );
+            callback( msg.getMessage( "ERROR", "POS_RADIUS_INVALID" ) );
             return;
         }
 
-        if ( message.length > storyMaxChars ) {
-            callback( "104 Message exceeds character count limit" );
-            return;
-        }
-
-        if ( message.length < storyMinChars ) {
-            callback( "105 Message is too short" );
+        if ( message.length > storyMaxChars || message.length < storyMinChars ){
+            callback( msg.getMessage( "ERROR", "MESSAGE_LENGTH", storyMinChars,
+                storyMaxChars ) );
             return;
         }
 
@@ -160,8 +152,7 @@ module.exports = {
             // Check if the given position is occupied
             for( var i = 0; i < stories.length; i++ ) {
                 if ( stories[ i ].x == x && stories[ i ].y == y ) {
-                    callback( "106 A story already exists " +
-                        "at the given position" );
+                    callback( msg.getMessage( "ERROR", "STORY_EXISTS", x, y ) );
                     return;
                 }
 
@@ -173,12 +164,12 @@ module.exports = {
             }
 
             if ( ! hasNeighbour ) {
-                callback( "107 Cannot create story without a neighbour" );
+                callback( msg.getMessage( "ERROR", "STORY_ALONE" ) );
                 return;
             }
 
             if ( repeatedMessage ) {
-                callback( "108 Repeated message" );
+                callback( msg.getMessage( "ERROR", "MESSAGE_REPEATED" ) );
                 return;
             }
 
@@ -234,7 +225,8 @@ module.exports = {
 
                                 con.release();
 
-                                console.log( "New story: " + message );
+                                msg.printMessage( "INFO", "STORY_CREATED", x, y,
+                                    message );
                                 callback( null );
                             } );
                         } );
