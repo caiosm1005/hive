@@ -6,12 +6,7 @@ module.exports = function( app, model ) {
         var y = req.params.y;
         var r = req.params.r;
 
-        model.getStories(languageId,x,y,r,remoteAddress,function(err,result) {
-            if ( err ) {
-                res.json( { error: true, response: err } );
-                return;
-            }
-
+        model.getStories( languageId,x,y,r,remoteAddress,function( result ) {
             res.json( result );
         } );
     } );
@@ -23,20 +18,14 @@ module.exports = function( app, model ) {
         var x = req.params.x;
         var y = req.params.y;
 
-        model.createStory( languageId, message, x, y, remoteAddress,
-            function( err ) {
-                if ( err ) {
-                    res.json( { error: true, response: err } );
-                    return;
-                }
-
-                model.getStories(languageId,x,y,1,null,function( err, result ) {
-                    if ( err ) {
-                        res.json( { error: true, response: err } );
-                        return;
-                    }
-                    res.json( result );
-                } );
+        model.createStory( languageId,message,x,y,remoteAddress,function( err ){
+            if ( err ) {
+                res.json( err );
+                return;
+            }
+            model.getStories( languageId,x,y,1,null,function( result ) {
+                res.json( result );
             } );
+        } );
     } );
 };

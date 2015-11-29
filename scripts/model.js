@@ -1,87 +1,63 @@
 var mysql = require( "mysql" );
-var msg = require( "./msg" );
-
-var connectionLimit = 4;
-var connectionHost = "";     //
-var connectionUser = "";     // TODO: Replace with production values
-var connectionPassword = ""; //
-var connectionDatabase = ""; //
-
-// List of clients by remote address and the timestamp of their last request
-// This is used to initiate a cooldown each time a client sends a model request
-// to avoid server overload
-var connectionClients = {};
-var connectionCooldown = 200;
-
-if ( process.env[ "NODE_ENV" ] == "development" ) {
-    connectionHost = "localhost";
-    connectionUser = "root";
-    connectionPassword = "";
-    connectionDatabase = "hive";
-}
+var config = require( "./config" );
+var response = require( "./response" );
 
 var pool = mysql.createPool( {
-    connectionLimit: connectionLimit,
-    host: connectionHost,
-    user: connectionUser,
-    password: connectionPassword,
-    database: connectionDatabase
+    connectionLimit: config.connLimit,
+    host: config.connHost,
+    user: config.connUser,
+    password: config.connPassword,
+    database: config.connDatabase
 } );
 
-function renewConnectionClients() {
-    var clients = {};
-    var currentTime = new Date().getTime();
+// This object holds the remote address under cooldown time. This is used to
+// mitigate brute force attacks and avoid bottlenecking the MySQL database
+var connectedClients = {
+    list: {},
 
-    for( var client in connectionClients ) {
-        if ( currentTime - connectionClients[ client ] <= connectionCooldown ) {
-            clients[ client ] = connectionClients[ client ];
+    renew: function() {
+        var clients = {};
+        var currentTime = new Date().getTime();
+        for( var client in this.list ) {
+            if ( currentTime < this.list[ client ] ) {
+                clients[ client ] = this.list[ client ];
+            }
         }
-    }
+        this.list = clients;
+    },
 
-    connectionClients = clients;
-}
-
-function checkConnectionClient( remoteAddress ) {
-    // TODO: Find a better way of bottlenecking request spam
-    return false;
-
-    if ( remoteAddress === null ) {
-        return false;
-    }
-
-    renewConnectionClients();
-
-    for( var client in connectionClients ) {
-        if ( client == remoteAddress ) {
+    check: function( remoteAddr, errorCallback ) {
+        if ( remoteAddr === null ) {
             return true;
         }
-    }
+        this.renew();
+        for( var client in this.list ) {
+            if ( client == remoteAddr ) {
+                var cooldown = this.list[ client ] - new Date().getTime();
+                var resp = response.getErrorJSON("TOO_MANY_REQUESTS", cooldown);
+                errorCallback( resp );
+                return false;
+            }
+        }
+        return true;
+    },
 
-    return false;
-}
-
-function addConnectionClient( remoteAddress ) {
-    if ( remoteAddress === null ) {
-        return;
-    }
-
-    var currentTime = new Date().getTime();
-    connectionClients[ remoteAddress ] = currentTime;
-}
-
-// Story variables
-var storyMaxRadius = 4;
-var storyMinChars = 3;
-var storyMaxChars = 35;
-
-module.exports = {
-    getStories: function( languageId, x, y, r, remoteAddress, callback ) {
-        if ( checkConnectionClient( remoteAddress ) ) {
-            callback( msg.getMessage( "ERROR", "TOO_MANY_REQUESTS" ) );
+    add: function( remoteAddr ) {
+        if ( remoteAddr === null ) {
             return;
         }
+        this.list[ remoteAddr ] = new Date().getTime() + config.connCooldown;
+    }
+};
 
-        addConnectionClient( remoteAddress );
+module.exports = {
+    getStories: function( languageId, x, y, r, remoteAddr, callback ) {
+
+        // Check if this client is in cooldown
+        if ( ! connectedClients.check( remoteAddr, callback ) ) {
+            return;
+        }
+        connectedClients.add( remoteAddr );
 
         var _x = x;
         var _y = y;
@@ -91,12 +67,14 @@ module.exports = {
         r = parseInt( r );
 
         if ( _x!=x || _y!=y || _r!=r || isNaN(x) || isNaN(y) || isNaN(r) ) {
-            callback( msg.getMessage( "ERROR", "POS_RADIUS_INVALID" ) );
+            var resp = response.getErrorJSON( "POS_RADIUS_INVALID" );
+            callback( resp );
             return;
         }
 
-        if ( r > storyMaxRadius || r < 0 ) {
-            callback(msg.getMessage( "ERROR", "RADIUS_SIZE", storyMaxRadius ));
+        if ( r > config.storyMaxRadius || r < 0 ) {
+            var resp=response.getErrorJSON("RADIUS_SIZE",config.storyMaxRadius);
+            callback( resp );
             return;
         }
 
@@ -109,20 +87,21 @@ module.exports = {
         
         pool.query( sql, esc, function( err, rows, fields ) {
             if ( err ) {
-                callback( err );
+                var resp = response.getErrorJSON( "DATABASE_ERROR", err );
+                callback( resp );
                 return;
             }
-            callback( null, rows );
+            callback( rows );
         } );
     },
 
-    createStory: function( languageId, message, x, y, remoteAddress, callback ){
-        if ( checkConnectionClient( remoteAddress ) ) {
-            callback( msg.getMessage( "ERROR", "TOO_MANY_REQUESTS" ) );
+    createStory: function( languageId, message, x, y, remoteAddr, callback ){
+
+        // Check if this client is in cooldown
+        if ( ! connectedClients.check( remoteAddr, callback ) ) {
             return;
         }
-
-        addConnectionClient( remoteAddress );
+        connectedClients.add( remoteAddr );
 
         var _x = x;
         var _y = y;
@@ -130,46 +109,43 @@ module.exports = {
         y = parseInt( y );
 
         if ( _x != x || _y != y || isNaN( x ) || isNaN( y ) ) {
-            callback( msg.getMessage( "ERROR", "POS_RADIUS_INVALID" ) );
+            var resp = response.getErrorJSON( "POS_RADIUS_INVALID" );
+            callback( resp );
             return;
         }
 
-        if ( message.length > storyMaxChars || message.length < storyMinChars ){
-            callback( msg.getMessage( "ERROR", "MESSAGE_LENGTH", storyMinChars,
-                storyMaxChars ) );
+        if ( message.length > config.storyMaxChars ||
+            message.length < config.storyMinChars ){
+            var resp = response.getErrorJSON( "MESSAGE_LENGTH",
+                config.storyMinChars, config.storyMaxChars );
+            callback( resp );
             return;
         }
 
-        this.getStories( languageId, x, y, 1, null, function( err, stories ) {
-            if ( err ) {
-                callback( err );
+        this.getStories( languageId, x, y, 1, null, function( stories ) {
+
+            // Check for error response
+            if ( stories.code ) {
+                callback( stories );
                 return;
             }
 
             var hasNeighbour = false;
-            var repeatedMessage = false;
 
             // Check if the given position is occupied
             for( var i = 0; i < stories.length; i++ ) {
                 if ( stories[ i ].x == x && stories[ i ].y == y ) {
-                    callback( msg.getMessage( "ERROR", "STORY_EXISTS", x, y ) );
+                    var resp = response.getErrorJSON( "STORY_EXISTS", x, y );
+                    callback( resp );
                     return;
                 }
 
                 hasNeighbour = true;
-
-                if ( stories[ i ].message == message ) {
-                    repeatedMessage = true;
-                }
             }
 
             if ( ! hasNeighbour ) {
-                callback( msg.getMessage( "ERROR", "STORY_ALONE" ) );
-                return;
-            }
-
-            if ( repeatedMessage ) {
-                callback( msg.getMessage( "ERROR", "MESSAGE_REPEATED" ) );
+                var resp = response.getErrorJSON( "STORY_ALONE" );
+                callback( resp );
                 return;
             }
 
@@ -178,14 +154,16 @@ module.exports = {
             pool.getConnection( function( err, con ) {
                 if ( err ) {
                     con.release();
-                    callback( err );
+                    var resp = response.getErrorJSON( "DATABASE_ERROR", err );
+                    callback( resp );
                     return;
                 }
 
                 con.beginTransaction( function( err ) {
                     if ( err ) {
                         con.release();
-                        callback( err );
+                        var resp = response.getErrorJSON("DATABASE_ERROR", err);
+                        callback( resp );
                         return;
                     }
 
@@ -199,19 +177,24 @@ module.exports = {
                         if ( err ) {
                             return con.rollback( function() {
                                 con.release();
-                                callback( err );
+                                var resp = response.getErrorJSON(
+                                    "DATABASE_ERROR", err );
+                                callback( resp );
+                                return;
                             } );
                         }
 
                         sql = "INSERT INTO log_story " +
                             "(story_id, remote_addr, created_on) " +
                             "VALUES (?, ?, NOW())";
-                        esc = [ result.insertId, remoteAddress ];
+                        esc = [ result.insertId, remoteAddr ];
                         con.query( sql, esc, function( err, result ) {
                             if ( err ) {
                                 return con.rollback( function() {
                                     con.release();
-                                    callback( err );
+                                    var resp = response.getErrorJSON(
+                                        "DATABASE_ERROR", err );
+                                    callback( resp );
                                 } );
                             }
 
@@ -219,15 +202,16 @@ module.exports = {
                                 if ( err ) {
                                     return con.rollback( function() {
                                         con.release();
-                                        callback( err );
+                                        var resp = response.getErrorJSON(
+                                            "DATABASE_ERROR", err );
+                                        callback( resp );
                                     } );
                                 }
 
                                 con.release();
 
-                                msg.printMessage( "INFO", "STORY_CREATED", x, y,
-                                    message );
-                                callback( null );
+                                response.printInfo("STORY_CREATED",x,y,message);
+                                callback();
                             } );
                         } );
                     } );
